@@ -1,28 +1,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
-#include "IMenuInterface.h"
+#include "CMenu.h"
 #include "CMainMenu.generated.h"
 
 
 UCLASS()
-class SESSION_API UCMainMenu : public UUserWidget
+class SESSION_API UCMainMenu : public UCMenu
 {
 	GENERATED_BODY()
 
 
 protected:
 	virtual bool Initialize() override;
-
-
-public:
-	void SetOwingGameInstance(IIMenuInterface* InOwningGameInstance);
-
-
-public:
-	void SetInputGameMode();
-	void SetInputUIMode();
 
 
 private:
@@ -38,6 +28,9 @@ private:
 	UFUNCTION()
 		void JoinServer();
 
+	UFUNCTION()
+		void QuitGame();
+		
 
 private:
 	UPROPERTY(meta = (BindWidget))
@@ -46,6 +39,8 @@ private:
 	UPROPERTY(meta = (BindWidget))
 		class UButton* Join_Button;
 
+	UPROPERTY(meta = (BindWidget))
+		class UButton* Quit_Button;
 
 	UPROPERTY(meta = (BindWidget))
 		class UWidgetSwitcher* ManuSwitcher;
@@ -65,9 +60,5 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 		class UEditableTextBox* IPAddressField;
-
-
-private:
-	IIMenuInterface* OwingGameInstance;
 
 };

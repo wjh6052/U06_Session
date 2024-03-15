@@ -3,6 +3,7 @@
 #include "Components/WidgetSwitcher.h"
 #include "Components/EditableTextBox.h"
 
+
 bool UCMainMenu::Initialize()
 {
 	bool bSuccess = Super::Initialize();
@@ -15,6 +16,8 @@ bool UCMainMenu::Initialize()
 	if (Join_Button == nullptr) return false;
 	Join_Button->OnClicked.AddDynamic(this, &UCMainMenu::OpenJoinMenu);
 
+	if (Quit_Button == nullptr) return false;
+	Quit_Button->OnClicked.AddDynamic(this, &UCMainMenu::QuitGame);
 
 	if (JoinManu_Confirm_Button == nullptr) return false;
 	JoinManu_Confirm_Button->OnClicked.AddDynamic(this, &UCMainMenu::JoinServer);
@@ -22,51 +25,10 @@ bool UCMainMenu::Initialize()
 	if (JoinManu_Back_Button == nullptr) return false;
 	JoinManu_Back_Button->OnClicked.AddDynamic(this, &UCMainMenu::OpenMainMenu);
 
+
 	return true;
 }
 
-void UCMainMenu::SetOwingGameInstance(IIMenuInterface* InOwingGameInstance)
-{
-	OwingGameInstance = InOwingGameInstance;
-}
-
-void UCMainMenu::SetInputGameMode()
-{
-	RemoveFromParent();
-
-	bIsFocusable = false;
-
-	FInputModeGameOnly inputMode;
-
-	UWorld* world = GetWorld();
-	if (world == nullptr) return;
-
-	APlayerController* controller = world->GetFirstPlayerController();
-	if (controller == nullptr) return;
-
-	controller->SetInputMode(inputMode);
-	controller->bShowMouseCursor = false;
-}
-
-void UCMainMenu::SetInputUIMode()
-{
-	AddToViewport();
-
-	bIsFocusable = true;
-
-	FInputModeUIOnly inputMode;
-	inputMode.SetWidgetToFocus(TakeWidget());
-	inputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-
-	UWorld* world = GetWorld();
-	if (world == nullptr) return;
-
-	APlayerController* controller = world->GetFirstPlayerController();
-	if (controller == nullptr) return;
-
-	controller->SetInputMode(inputMode);
-	controller->bShowMouseCursor = true;
-}
 
 void UCMainMenu::HostServer()
 {
@@ -93,5 +55,22 @@ void UCMainMenu::OpenMainMenu()
 void UCMainMenu::JoinServer()
 {
 	if (IPAddressField == nullptr) return;
+	if (OwingGameInstance == nullptr) return;
+
+
+	const FString address = IPAddressField->GetText().ToString();
+	OwingGameInstance->Join(address);
+}
+
+void UCMainMenu::QuitGame()
+{
+	UWorld* world = GetWorld();
+	if (world == nullptr) return;
+
+
+	APlayerController* controller = world->GetFirstPlayerController();
+	if (controller == nullptr) return;
+
+	controller->ConsoleCommand("Quit");
 
 }
