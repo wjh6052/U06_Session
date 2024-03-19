@@ -3,7 +3,11 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "Widgets/IMenuInterface.h"
+#include "OnlineSubsystem.h"
 #include "CGameInstance.generated.h"
+
+
+
 
 UCLASS()
 class SESSION_API UCGameInstance : public UGameInstance, public IIMenuInterface
@@ -29,10 +33,23 @@ public:
 
 	void TravelToMainMenu() override;
 
+
+private:
+	void CreateSession();
+
+	void OnCreateSessionCompleted(FName InSessionName, bool InSuccess);
+	void OnDestroySessionCompleted(FName InSessionName, bool InSuccess);
+	void OnFindSessionCompleted(bool InSuccess);
+
+
 private:
 	TSubclassOf<class UUserWidget> MenuWidgetClass;
 	TSubclassOf<class UUserWidget> GameWidgetClass;
 
 	class UCMainMenu* MenuWidget;
 	class UCGameMenu* GameWidget;
+
+	IOnlineSessionPtr SessionInterface;
+
+	TSharedPtr<class FOnlineSessionSearch> SessionSearch;
 };
