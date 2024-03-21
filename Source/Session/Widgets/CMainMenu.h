@@ -4,11 +4,26 @@
 #include "CMenu.h"
 #include "CMainMenu.generated.h"
 
+USTRUCT()
+struct FSessionData
+{
+	GENERATED_BODY()
+
+public:
+	FString Name;
+	uint16 CurrentPlayers;
+	uint16 MaxPlayers;
+	FString HostUserName;
+};
 
 UCLASS()
 class SESSION_API UCMainMenu : public UCMenu
 {
 	GENERATED_BODY()
+
+
+public:
+	UCMainMenu(const FObjectInitializer& ObjectInitializer);
 
 
 protected:
@@ -31,6 +46,12 @@ private:
 	UFUNCTION()
 		void QuitGame();
 		
+
+public:
+	void SetSessionList(TArray<FSessionData> InFSessionDatas);
+
+	void SetSelectedSessionIndex(uint32 InIndex);
+
 
 private:
 	UPROPERTY(meta = (BindWidget))
@@ -59,6 +80,11 @@ private:
 		class UButton* JoinManu_Back_Button;
 
 	UPROPERTY(meta = (BindWidget))
-		class UEditableTextBox* IPAddressField;
+		class UPanelWidget* SessionList;
+
+
+private:
+	TSubclassOf<class UUserWidget> SessionRowClass;
+	TOptional<uint32> SelectedSessionIndex;
 
 };

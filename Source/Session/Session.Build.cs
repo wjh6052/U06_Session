@@ -14,7 +14,9 @@ public class Session : ModuleRules
 			"InputCore",
 			"HeadMountedDisplay",
 			"UMG",
-			"OnlineSubsystem"
+			"OnlineSubsystem",
+			"OnlineSubsystemSteam"
+			
 		});
 
 		PublicIncludePaths.Add(ModuleDirectory);
