@@ -41,11 +41,14 @@ private:
 		void OpenMainMenu();
 
 	UFUNCTION()
+		void OpenHostMenu();
+
+	UFUNCTION()
 		void JoinServer();
 
 	UFUNCTION()
 		void QuitGame();
-		
+
 
 public:
 	void SetSessionList(TArray<FSessionData> InFSessionDatas);
@@ -54,6 +57,7 @@ public:
 
 
 private:
+	//MainManu
 	UPROPERTY(meta = (BindWidget))
 		class UButton* Host_Button;
 
@@ -72,7 +76,11 @@ private:
 	UPROPERTY(meta = (BindWidget))
 		class UWidget* JoinManu;
 
+	UPROPERTY(meta = (BindWidget))
+		class UWidget* HostManu;
 
+
+	//JoinManu
 	UPROPERTY(meta = (BindWidget))
 		class UButton* JoinManu_Confirm_Button;
 
@@ -81,6 +89,17 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 		class UPanelWidget* SessionList;
+
+
+	//HostManu
+	UPROPERTY(meta = (BindWidget))
+		class UButton* HostManu_Confirm_Button;
+
+	UPROPERTY(meta = (BindWidget))
+		class UButton* HostManu_Back_Button;
+
+	UPROPERTY(meta = (BindWidget))
+		class UEditableTextBox* SessionNameText;
 
 
 private:

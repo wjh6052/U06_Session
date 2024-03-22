@@ -4,6 +4,7 @@
 #include "Components/WidgetSwitcher.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
+#include "Components/EditableTextBox.h"
 
 #include "CSessionRow.h"
 
@@ -23,13 +24,14 @@ bool UCMainMenu::Initialize()
 
 
 	if (Host_Button == nullptr) return false;
-	Host_Button->OnClicked.AddDynamic(this, &UCMainMenu::HostServer);
+	Host_Button->OnClicked.AddDynamic(this, &UCMainMenu::OpenHostMenu);
 
 	if (Join_Button == nullptr) return false;
 	Join_Button->OnClicked.AddDynamic(this, &UCMainMenu::OpenJoinMenu);
 
 	if (Quit_Button == nullptr) return false;
 	Quit_Button->OnClicked.AddDynamic(this, &UCMainMenu::QuitGame);
+
 
 	if (JoinManu_Confirm_Button == nullptr) return false;
 	JoinManu_Confirm_Button->OnClicked.AddDynamic(this, &UCMainMenu::JoinServer);
@@ -38,14 +40,25 @@ bool UCMainMenu::Initialize()
 	JoinManu_Back_Button->OnClicked.AddDynamic(this, &UCMainMenu::OpenMainMenu);
 
 
+	if (HostManu_Confirm_Button == nullptr) return false;
+	HostManu_Confirm_Button->OnClicked.AddDynamic(this, &UCMainMenu::HostServer);
+
+	if (HostManu_Back_Button == nullptr) return false;
+	HostManu_Back_Button->OnClicked.AddDynamic(this, &UCMainMenu::OpenMainMenu);
+
+
 	return true;
 }
 
 
 void UCMainMenu::HostServer()
 {
-	if (!!OwingGameInstance)
-		OwingGameInstance->Host();
+	if (!!OwingGameInstance && !!SessionNameText)
+	{
+		FString customSessionName = SessionNameText->Text.ToString();
+		OwingGameInstance->Host(customSessionName);
+
+	}
 }
 
 
@@ -67,6 +80,14 @@ void UCMainMenu::OpenMainMenu()
 	if (MainManu == nullptr) return;
 
 	ManuSwitcher->SetActiveWidget(MainManu);
+}
+
+void UCMainMenu::OpenHostMenu()
+{
+	if (ManuSwitcher == nullptr) return;
+	if (HostManu == nullptr) return;
+
+	ManuSwitcher->SetActiveWidget(HostManu);
 }
 
 

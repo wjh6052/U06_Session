@@ -7,6 +7,7 @@
 
 
 const static FName SESSION_NAME = L"GameSesstion";
+const static FName SESSION_KEY = L"SessionKey";
 
 
 
@@ -42,11 +43,18 @@ void UCGameInstance::Init()
 	{
 		UE_LOG(LogTemp, Error, TEXT("OSS Not Found"));
 	}
+	
+
+	if (!!GEngine)
+		GEngine->OnNetworkFailure().AddUObject(this, &UCGameInstance::OnNetworkFailure);
 }
 
 
-void UCGameInstance::Host()
+void UCGameInstance::Host(FString InSessionName)
 {
+	CustomSessionName = InSessionName;
+
+
 	if (SessionInterface.IsValid() == false) return;
 
 
@@ -83,6 +91,9 @@ void UCGameInstance::CreateSession()
 	sessionSettings.NumPublicConnections = 5;
 	sessionSettings.bShouldAdvertise = true;
 	sessionSettings.bUsesPresence = true;
+
+	sessionSettings.Set(SESSION_KEY, CustomSessionName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+
 
 	SessionInterface->CreateSession(0, SESSION_NAME, sessionSettings);
 }
@@ -149,7 +160,12 @@ void UCGameInstance::ShowJoinableSessionList()
 		SessionInterface->FindSessions(0, SessionSearch.ToSharedRef());
 	}
 }
+void UCGameInstance::StartSession()
+{
+	if (SessionInterface.IsValid())
+		SessionInterface->StartSession(SESSION_NAME);
 
+}
 
 void UCGameInstance::OnCreateSessionCompleted(FName InSessionName, bool InSuccess)
 {
@@ -174,7 +190,7 @@ void UCGameInstance::OnCreateSessionCompleted(FName InSessionName, bool InSucces
 	UWorld* world = GetWorld();
 	if (world == nullptr) return;
 
-	world->ServerTravel("/Game/Maps/Play?listen");
+	world->ServerTravel("/Game/Maps/Lobby?listen");
 
 }
 
@@ -193,11 +209,21 @@ void UCGameInstance::OnFindSessionCompleted(bool InSuccess)
 			UE_LOG(LogTemp, Error, L"Ping ID : %d", serchResult.PingInMs);
 
 			FSessionData sessionData;
-			sessionData.Name = serchResult.GetSessionIdStr();
 			sessionData.MaxPlayers = serchResult.Session.SessionSettings.NumPublicConnections;
 			sessionData.CurrentPlayers = sessionData.MaxPlayers - serchResult.Session.NumOpenPublicConnections;
 			sessionData.HostUserName = serchResult.Session.OwningUserName;
-		
+			
+			FString sessionName;
+			if (serchResult.Session.SessionSettings.Get(SESSION_KEY, sessionName))
+			{
+				UE_LOG(LogTemp, Warning, L"Value : %s", *sessionName);
+				sessionData.Name = sessionName;
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, L"Value : NULLValue");
+			}
+
 			sessionDatas.Add(sessionData);
 		}
 
@@ -219,12 +245,22 @@ void UCGameInstance::OnJoinSessionCompleted(FName InSessionName, EOnJoinSessionC
 
 	UEngine* engine = GetEngine();
 	if (engine == nullptr) return;
-	engine->AddOnScreenDebugMessage(-1, 2, FColor::Red, FString::Printf(TEXT("Join to %s"), *address), true, FVector2D(2));
+	engine->AddOnScreenDebugMessage(-1, 2, FColor::Red, FString::Printf(L"Join to %s", *address), true, FVector2D(2));
 
 	APlayerController* controller = GetFirstLocalPlayerController();
 	if (controller == nullptr) return;
 
 	controller->ClientTravel(address, ETravelType::TRAVEL_Absolute);
+
+}
+
+void UCGameInstance::OnNetworkFailure(UWorld* InWorld, UNetDriver* InNetDriver, ENetworkFailure::Type InFailure, const FString& InErrorMessage)
+{
+	UEngine* engine = GetEngine();
+	if (engine == nullptr) return;
+	engine->AddOnScreenDebugMessage(-1, 2, FColor::Red, InErrorMessage);
+
+	TravelToMainMenu();
 
 }
 
