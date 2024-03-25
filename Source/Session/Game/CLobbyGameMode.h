@@ -21,4 +21,6 @@ private:
 	uint32 NumberOfPlayers;
 
 	FTimerHandle GameStartHandle;
+
+	float StartTime = 1.0f;
 };
