@@ -9,6 +9,8 @@ class UCameraComponent;
 class USkeletalMeshComponent;
 class USoundBase;
 class UAnimMontage;
+class UParticleSystemComponent;
+class ACBullet;
 
 UCLASS(config=Game)
 class AFPSCharacter : public ACharacter
@@ -28,6 +30,12 @@ class AFPSCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 		UCameraComponent* Camera;
 
+	UPROPERTY(VisibleDefaultsOnly, Category = Particle)
+		UParticleSystemComponent* FP_GunShotParticle;
+
+	UPROPERTY(VisibleDefaultsOnly, Category = Particle)
+		UParticleSystemComponent* TP_GunShotParticle;
+
 
 public:
 	AFPSCharacter();
@@ -37,6 +45,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
 		float BaseLookUpRate = 45.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
+		TSubclassOf<ACBullet> BulletClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Gameplay)
 		USoundBase* FireSound;
@@ -55,8 +66,20 @@ public:
 
 
 protected:
+	virtual void BeginPlay() override;
 
 	void OnFire();
+
+	UFUNCTION(Reliable, Server)
+		void OnServerFire(const FVector& InLineStart, const FVector& InLineEnd);
+	void OnServerFire_Implementation(const FVector& InLineStart, const FVector& InLineEnd);
+
+	UFUNCTION(NetMulticast, Unreliable)
+		void NetMulticast_ShootEffects();
+	void NetMulticast_ShootEffects_Implementation();
+
+
+protected:
 
 	void MoveForward(float Val);
 	void MoveRight(float Val);
@@ -70,23 +93,6 @@ protected:
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 
 
-private:
-	UFUNCTION(Reliable, Server)
-		void OnServer();
 
-	UFUNCTION(NetMulticast, Reliable)
-		void OnNetMulticast();
-
-	UFUNCTION(Client, Reliable)
-		void OnClient();
-
-
-	int32 RandomValue;
-
-	UPROPERTY(Replicated = "OnRep_RandomValue")
-		int32 RandomValue_Rep;
-
-	UFUNCTION()
-		void OnRep_RandomValue();
 };
 

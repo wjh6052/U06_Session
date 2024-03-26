@@ -1,12 +1,16 @@
 #include "FPSCharacter.h"
 #include "Global.h"
+
 #include "Animation/AnimInstance.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
-#include "Net/UnrealNetwork.h"
+#include "Particles/ParticleSystemComponent.h"
+
+#include "Actors/CBullet.h"
+#include "Game/CGameState.h"
 
 
 AFPSCharacter::AFPSCharacter()
@@ -49,18 +53,19 @@ AFPSCharacter::AFPSCharacter()
 		FP_Mesh->SetAnimInstanceClass(fp_AnimClass.Class);
 
 
-
 	FP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
 	FP_Gun->SetOnlyOwnerSee(true);
 	FP_Gun->bCastDynamicShadow = false;
 	FP_Gun->CastShadow = false;
 	FP_Gun->SetupAttachment(FP_Mesh, TEXT("GripPoint"));
 
+
 	TP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TP_Gun"));
 	TP_Gun->SetOwnerNoSee(true);
 	TP_Gun->SetupAttachment(GetMesh(), "hand_r");
 	TP_Gun->SetRelativeLocation(FVector(-9.8f, 5, 0));
 	TP_Gun->SetRelativeRotation(FRotator(0, 90, 0));
+
 
 	ConstructorHelpers::FObjectFinder<USkeletalMesh> gunAsset(TEXT("/Game/FirstPerson/FPWeapon/Mesh/SK_FPGun"));
 	if (gunAsset.Succeeded())
@@ -70,7 +75,19 @@ AFPSCharacter::AFPSCharacter()
 	}
 
 
+	CHelpers::CreateSceneComponent(this, &FP_GunShotParticle, "FP_GunShotParticle", FP_Gun);
+	FP_GunShotParticle->SetupAttachment(FP_Gun, "Muzzle");
+	FP_GunShotParticle->bAutoActivate = false;
+	FP_GunShotParticle->SetOnlyOwnerSee(true);
+
+
+	CHelpers::CreateSceneComponent(this, &TP_GunShotParticle, "TP_GunShotParticle", TP_Gun);
+	TP_GunShotParticle->SetupAttachment(TP_Gun, "Muzzle");
+	TP_GunShotParticle->bAutoActivate = false;
+	TP_GunShotParticle->SetOwnerNoSee(true);
+
 }
+
 
 void AFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
@@ -88,91 +105,98 @@ void AFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInput
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AFPSCharacter::LookUpAtRate);
 }
 
-void AFPSCharacter::OnRep_RandomValue()
+
+
+void AFPSCharacter::BeginPlay()
 {
-	CLog::Print("Yes Rep : " + FString::FromInt(RandomValue_Rep), -1, 2.f, FColor::Red);
-}
+	Super::BeginPlay();
 
-
-void AFPSCharacter::OnServer_Implementation()
-{
-	//OnClient();
-
-	RandomValue_Rep = UKismetMathLibrary::RandomInteger(100);
-	CLog::Print("Yes Rep : " + FString::FromInt(RandomValue_Rep), -1, 2.f, FColor::Red);
-	OnNetMulticast();
-}
-
-
-void AFPSCharacter::OnNetMulticast_Implementation()
-{
-	//CLog::Print("OnNetMulticast");
-
-	/*
-	if (GetLocalRole() == ENetRole::ROLE_Authority)
-		CLog::Print("Authority");
-	else if (GetLocalRole() == ENetRole::ROLE_AutonomousProxy)
-		CLog::Print("AutonomouseProxy");
-	else if (GetLocalRole() == ENetRole::ROLE_SimulatedProxy)
-		CLog::Print("SimulatedProxy");
+	ACGameState* gameState = Cast<ACGameState>(GetWorld()->GetGameState());
+	if (!!gameState)
+	{
+		CLog::Print(gameState->TestTeam == ETeamType::BlueTeam ? "Blud" : "Red");
+		CLog::Print(gameState->PlayerArray.Num());
+	}
 	else
-		CLog::Print("None");
-	*/
-	CLog::Print("No Rep : " + FString::FromInt(RandomValue), -1, 2.0f, FColor::Blue);
+	{
+		CLog::Print("GameState is not found");
+	}
 }
-
-
-void AFPSCharacter::OnClient_Implementation()
-{
-	//CLog::Print("OnClient");
-}
-
 
 void AFPSCharacter::OnFire()
 {
-	RandomValue = UKismetMathLibrary::RandomInteger(100);
-	OnServer();
+	if (!!FP_FireAnimation)
+	{
+		UAnimInstance* animInstance = FP_Mesh->GetAnimInstance();
+		if (!!animInstance)
+		{
+			animInstance->Montage_Play(FP_FireAnimation, 1.f);
+		}
+	}
+
+	if (!!FP_GunShotParticle)
+		FP_GunShotParticle->Activate(true);
 
 
-	if (FireSound != NULL)
+	APlayerController* playerController = Cast<APlayerController>(GetController());
+	
+	FVector shootDir = FVector::ZeroVector;
+	FVector startTrace = FVector::ZeroVector;
+
+	if (playerController)
+	{
+		FRotator camRot;
+		playerController->GetPlayerViewPoint(startTrace, camRot);
+		shootDir = camRot.Vector();
+
+		startTrace = startTrace + shootDir * ((GetActorLocation() - startTrace) | shootDir);
+	}
+
+	const FVector endTrace = startTrace + shootDir * WeaponRange;
+	
+	const FHitResult impact = WeaponTrace(startTrace, endTrace);
+
+	AActor* damagedActor = impact.GetActor();
+	UPrimitiveComponent* damagedComponent = impact.GetComponent();
+
+	if ((!!damagedActor) && (damagedActor != this) && (!!damagedComponent) && damagedComponent->IsSimulatingPhysics())
+	{
+		damagedComponent->AddImpulseAtLocation(shootDir * WeaponDamage, impact.Location);
+	}
+
+	OnServerFire(startTrace, endTrace);
+}
+
+
+void AFPSCharacter::OnServerFire_Implementation(const FVector& InLineStart, const FVector& InLineEnd)
+{
+	NetMulticast_ShootEffects();
+}
+
+
+void AFPSCharacter::NetMulticast_ShootEffects_Implementation()
+{
+	if (!!TP_FireAnimation)
+	{
+		UAnimInstance* animInstance = GetMesh()->GetAnimInstance();
+		if (!!animInstance)
+		{
+			animInstance->Montage_Play(TP_FireAnimation, 1.f);
+		}
+	}
+
+
+	if (!!FireSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
 	}
 
-	if (FP_FireAnimation != NULL)
-	{
-		UAnimInstance* AnimInstance = FP_Mesh->GetAnimInstance();
-		if (AnimInstance != NULL)
-		{
-			AnimInstance->Montage_Play(FP_FireAnimation, 1.f);
-		}
-	}
 
-	APlayerController* PlayerController = Cast<APlayerController>(GetController());
-	
-	FVector ShootDir = FVector::ZeroVector;
-	FVector StartTrace = FVector::ZeroVector;
+	if (!!TP_GunShotParticle)
+		TP_GunShotParticle->Activate(true);
 
-	if (PlayerController)
-	{
-		FRotator CamRot;
-		PlayerController->GetPlayerViewPoint(StartTrace, CamRot);
-		ShootDir = CamRot.Vector();
-
-		StartTrace = StartTrace + ShootDir * ((GetActorLocation() - StartTrace) | ShootDir);
-	}
-
-	const FVector EndTrace = StartTrace + ShootDir * WeaponRange;
-	
-	const FHitResult Impact = WeaponTrace(StartTrace, EndTrace);
-
-	AActor* DamagedActor = Impact.GetActor();
-	UPrimitiveComponent* DamagedComponent = Impact.GetComponent();
-
-	if ((DamagedActor != NULL) && (DamagedActor != this) && (DamagedComponent != NULL) && DamagedComponent->IsSimulatingPhysics())
-	{
-		DamagedComponent->AddImpulseAtLocation(ShootDir * WeaponDamage, Impact.Location);
-	}
+	if (!!BulletClass)
+		GetWorld()->SpawnActor<ACBullet>(BulletClass, FP_Gun->GetSocketLocation("Muzzle"), FP_Gun->GetSocketRotation("Muzzle"));
 }
 
 
@@ -212,12 +236,3 @@ FHitResult AFPSCharacter::WeaponTrace(const FVector& StartTrace, const FVector& 
 
 	return Hit;
 }
-
-
-void AFPSCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(AFPSCharacter, RandomValue_Rep);
-}
-
