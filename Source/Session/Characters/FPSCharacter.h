@@ -76,5 +76,17 @@ private:
 
 	UFUNCTION(NetMulticast, Reliable)
 		void OnNetMulticast();
+
+	UFUNCTION(Client, Reliable)
+		void OnClient();
+
+
+	int32 RandomValue;
+
+	UPROPERTY(Replicated = "OnRep_RandomValue")
+		int32 RandomValue_Rep;
+
+	UFUNCTION()
+		void OnRep_RandomValue();
 };
 

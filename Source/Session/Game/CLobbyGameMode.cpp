@@ -6,11 +6,11 @@
 void ACLobbyGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
-
+	
 	++NumberOfPlayers;
 
 	UE_LOG(LogTemp, Warning, L"Current Players : %d", NumberOfPlayers);
-
+	
 	if (NumberOfPlayers >= 3)
 	{
 		UE_LOG(LogTemp, Warning, L"Reached 3 Players");
