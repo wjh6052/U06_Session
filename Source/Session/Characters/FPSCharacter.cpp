@@ -7,10 +7,12 @@
 #include "Camera/CameraComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
+#include "Net/UnrealNetwork.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #include "Actors/CBullet.h"
-#include "Game/CGameState.h"
+
 
 
 AFPSCharacter::AFPSCharacter()
@@ -111,16 +113,8 @@ void AFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ACGameState* gameState = Cast<ACGameState>(GetWorld()->GetGameState());
-	if (!!gameState)
-	{
-		CLog::Print(gameState->TestTeam == ETeamType::BlueTeam ? "Blud" : "Red");
-		CLog::Print(gameState->PlayerArray.Num());
-	}
-	else
-	{
-		CLog::Print("GameState is not found");
-	}
+	if (HasAuthority() == false)
+		SetTeamColor(CurrentTeam);
 }
 
 void AFPSCharacter::OnFire()
@@ -199,6 +193,25 @@ void AFPSCharacter::NetMulticast_ShootEffects_Implementation()
 		GetWorld()->SpawnActor<ACBullet>(BulletClass, FP_Gun->GetSocketLocation("Muzzle"), FP_Gun->GetSocketRotation("Muzzle"));
 }
 
+void AFPSCharacter::SetTeamColor_Implementation(ETeamType InTeamType)
+{
+	FLinearColor color;
+
+	if (InTeamType == ETeamType::RedTeam)
+		color = FLinearColor::Red;
+	else
+		color = FLinearColor::Blue;
+
+	if (DynamicMaterial == nullptr)
+	{
+		DynamicMaterial = UMaterialInstanceDynamic::Create(GetMesh()->GetMaterial(0), nullptr);
+		DynamicMaterial->SetVectorParameterValue("BodyColor", color);
+
+		FP_Mesh->SetMaterial(0, DynamicMaterial);
+		GetMesh()->SetMaterial(0, DynamicMaterial);
+	}
+}
+
 
 void AFPSCharacter::MoveForward(float Value)
 {
@@ -235,4 +248,11 @@ FHitResult AFPSCharacter::WeaponTrace(const FVector& StartTrace, const FVector& 
 	GetWorld()->LineTraceSingleByChannel(Hit, StartTrace, EndTrace, ECC_GameTraceChannel1, TraceParams);
 
 	return Hit;
+}
+
+void AFPSCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AFPSCharacter, CurrentTeam);
 }
