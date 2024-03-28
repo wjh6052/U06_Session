@@ -4,12 +4,12 @@
 
 
 ACPlayerState::ACPlayerState(const FObjectInitializer& ObjectInitializer)
-	: Health(100), Death(0), Team(ETeamType::RedTeam)
+	: Health(100)
+	, Death(0)
+	, Team(ETeamType::RedTeam)
 {
-	
 
 }
-
 
 void ACPlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
 {

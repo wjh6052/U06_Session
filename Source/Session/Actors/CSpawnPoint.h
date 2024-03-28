@@ -46,4 +46,5 @@ private:
 		class UCapsuleComponent* Capsule;
 
 	TArray<AActor*> OverlappedActors;
+	
 };
