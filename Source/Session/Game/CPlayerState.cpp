@@ -4,9 +4,7 @@
 
 
 ACPlayerState::ACPlayerState(const FObjectInitializer& ObjectInitializer)
-	: Health(100)
-	, Death(0)
-	, Team(ETeamType::RedTeam)
+	: Health(100), Death(0), Team(ETeamType::RedTeam), SpawnRotation(0)
 {
 
 }
@@ -18,4 +16,5 @@ void ACPlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutL
 	DOREPLIFETIME(ACPlayerState, Health);
 	DOREPLIFETIME(ACPlayerState, Death);
 	DOREPLIFETIME(ACPlayerState, Team);
+	DOREPLIFETIME(ACPlayerState, SpawnRotation);
 }

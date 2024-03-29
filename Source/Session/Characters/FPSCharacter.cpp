@@ -92,6 +92,22 @@ AFPSCharacter::AFPSCharacter()
 
 }
 
+ACPlayerState* AFPSCharacter::GetSelfPlayerState()
+{
+	if (SelfPlayerState == nullptr)
+		SelfPlayerState = Cast< ACPlayerState>(GetPlayerState());
+
+	return SelfPlayerState;
+}
+
+void AFPSCharacter::SetSelfPlayerState(ACPlayerState* NewState)
+{
+	CheckFalse(HasAuthority());
+
+	SetPlayerState(NewState);
+	SelfPlayerState = NewState;
+}
+
 
 void AFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
@@ -134,6 +150,8 @@ void AFPSCharacter::PossessedBy(AController* NewController)
 
 void AFPSCharacter::OnFire()
 {
+	CheckTrue(GetSelfPlayerState()->Health <= 0);
+
 	if (!!FP_FireAnimation)
 	{
 		UAnimInstance* animInstance = FP_Mesh->GetAnimInstance();
@@ -163,15 +181,6 @@ void AFPSCharacter::OnFire()
 
 	const FVector endTrace = startTrace + shootDir * WeaponRange;
 	
-	const FHitResult impact = WeaponTrace(startTrace, endTrace);
-
-	AActor* damagedActor = impact.GetActor();
-	UPrimitiveComponent* damagedComponent = impact.GetComponent();
-
-	if ((!!damagedActor) && (damagedActor != this) && (!!damagedComponent) && damagedComponent->IsSimulatingPhysics())
-	{
-		damagedComponent->AddImpulseAtLocation(shootDir * WeaponDamage, impact.Location);
-	}
 
 	OnServerFire(startTrace, endTrace);
 }
@@ -179,6 +188,7 @@ void AFPSCharacter::OnFire()
 
 void AFPSCharacter::OnServerFire_Implementation(const FVector& InLineStart, const FVector& InLineEnd)
 {
+	WeaponTrace(InLineStart, InLineEnd);
 	NetMulticast_ShootEffects();
 }
 
@@ -228,6 +238,41 @@ void AFPSCharacter::SetTeamColor_Implementation(ETeamType InTeamType)
 }
 
 
+void AFPSCharacter::ForceRotation_Implementation(FRotator NewRotation)
+{
+	SetActorRotation(NewRotation);
+
+	if (!!GetController())
+		GetController()->SetControlRotation(NewRotation);
+}
+
+
+void AFPSCharacter::PlayDead_Implementation()
+{
+	FP_Mesh->SetVisibility(false);
+	FP_Gun->bHiddenInGame = true;
+
+	GetMesh()->SetCollisionProfileName("Ragdoll");
+	GetMesh()->SetEnablePhysicsBlending(1.0f);
+	GetMesh()->SetSimulatePhysics(true);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+}
+
+
+void AFPSCharacter::PlayDamage_Implementation()
+{
+	CheckNull(TP_HittedAnimation);
+	
+
+	UAnimInstance* animInstance = GetMesh()->GetAnimInstance();
+	if (!!animInstance)
+	{
+		animInstance->Montage_Play(TP_HittedAnimation, 0.7f);
+	}
+	
+}
+
+
 void AFPSCharacter::MoveForward(float Value)
 {
 	if (Value != 0.0f)
@@ -254,15 +299,55 @@ void AFPSCharacter::LookUpAtRate(float Rate)
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
-FHitResult AFPSCharacter::WeaponTrace(const FVector& StartTrace, const FVector& EndTrace) const
+FHitResult AFPSCharacter::WeaponTrace(const FVector& StartTrace, const FVector& EndTrace)
 {
-	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(WeaponTrace), true, GetInstigator());
-	TraceParams.bReturnPhysicalMaterial = true;
+	FCollisionQueryParams traceParams(SCENE_QUERY_STAT(WeaponTrace), true, GetInstigator());
+	traceParams.bReturnPhysicalMaterial = true;
 
-	FHitResult Hit(ForceInit);
-	GetWorld()->LineTraceSingleByChannel(Hit, StartTrace, EndTrace, ECC_GameTraceChannel1, TraceParams);
+	FHitResult hit(ForceInit);
+	GetWorld()->LineTraceSingleByChannel(hit, StartTrace, EndTrace, ECC_Pawn, traceParams);
 
-	return Hit;
+	CheckFalseResult(hit.IsValidBlockingHit(), hit);
+
+	AFPSCharacter* other = Cast<AFPSCharacter>(hit.GetActor());
+	if (other != nullptr && (other->CurrentTeam != CurrentTeam))
+	{
+		FDamageEvent damageEvent;
+		other->TakeDamage(WeaponDamage, damageEvent, GetController(), this);
+	}
+
+	return hit;
+}
+
+float AFPSCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	CheckTrueResult(DamageCauser == this, DamageAmount);
+	SelfPlayerState->Health -= DamageAmount;
+
+
+	//Dead
+	if (SelfPlayerState->Health <= 0)
+	{
+		PlayDead();
+
+		SelfPlayerState->Death++;
+
+		AFPSCharacter* other = Cast<AFPSCharacter>(DamageCauser);
+		if (!!other)
+			other->SelfPlayerState->Score += 1.0f;
+
+
+		return DamageAmount;
+	}
+
+
+	//Hitted
+	PlayDamage();
+
+	return DamageAmount;
+
 }
 
 void AFPSCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
