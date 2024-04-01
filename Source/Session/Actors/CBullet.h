@@ -16,6 +16,10 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	UFUNCTION()
+		void BeginOvlap(AActor* OverlappedActor, AActor* OtherActor);
+
+private:
 	UPROPERTY(VisibleDefaultsOnly)
 		class UStaticMeshComponent* Mesh;
 

@@ -14,6 +14,7 @@
 
 #include "Actors/CBullet.h"
 #include "Game/CPlayerState.h"
+#include "Game/FPSGameMode.h"
 
 
 
@@ -119,10 +120,20 @@ void AFPSCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInput
 	
 	PlayerInputComponent->BindAxis("MoveForward", this, &AFPSCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AFPSCharacter::MoveRight);
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
-	PlayerInputComponent->BindAxis("TurnRate", this, &AFPSCharacter::TurnAtRate);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
-	PlayerInputComponent->BindAxis("LookUpRate", this, &AFPSCharacter::LookUpAtRate);
+	PlayerInputComponent->BindAxis("Turn", this, &AFPSCharacter::TurnAtRate);
+	PlayerInputComponent->BindAxis("LookUp", this, &AFPSCharacter::LookUpAtRate);
+}
+
+void AFPSCharacter::Respawn()
+{
+	CheckFalse(HasAuthority());
+
+	AFPSGameMode* gameMode = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+	CheckNull(gameMode);
+
+	gameMode->Respawn(this);
+
+	Destroy(true);
 }
 
 
@@ -250,9 +261,12 @@ void AFPSCharacter::ForceRotation_Implementation(FRotator NewRotation)
 void AFPSCharacter::PlayDead_Implementation()
 {
 	FP_Mesh->SetVisibility(false);
-	FP_Gun->bHiddenInGame = true;
+	FP_Gun->SetVisibility(false);
 
-	GetMesh()->SetCollisionProfileName("Ragdoll");
+	//GetMesh()->SetVisibility(false);
+	//TP_Gun->SetVisibility(false);
+
+	GetMesh()->SetCollisionProfileName("Spectator");
 	GetMesh()->SetEnablePhysicsBlending(1.0f);
 	GetMesh()->SetSimulatePhysics(true);
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -291,11 +305,17 @@ void AFPSCharacter::MoveRight(float Value)
 
 void AFPSCharacter::TurnAtRate(float Rate)
 {
+	CheckNull(SelfPlayerState);
+	CheckTrue(SelfPlayerState->Health <= 0);
+
 	AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AFPSCharacter::LookUpAtRate(float Rate)
 {
+	CheckNull(SelfPlayerState);
+	CheckTrue(SelfPlayerState->Health <= 0);
+
 	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
@@ -338,6 +358,8 @@ float AFPSCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEv
 		if (!!other)
 			other->SelfPlayerState->Score += 1.0f;
 
+		FTimerHandle hanlde;
+		GetWorldTimerManager().SetTimer(hanlde, this, &AFPSCharacter::Respawn, 5.0f, false);
 
 		return DamageAmount;
 	}

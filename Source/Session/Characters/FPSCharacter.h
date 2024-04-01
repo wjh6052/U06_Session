@@ -45,10 +45,10 @@ public:
 	void SetSelfPlayerState(class ACPlayerState* NewState);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-		float BaseTurnRate = 45.f;
+		float BaseTurnRate = 90.f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)
-		float BaseLookUpRate = 45.f;
+		float BaseLookUpRate = 90.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 		TSubclassOf<ACBullet> BulletClass;
@@ -121,6 +121,11 @@ protected:
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
+
+
+private:
+	UFUNCTION()
+		void Respawn();
 
 
 public:

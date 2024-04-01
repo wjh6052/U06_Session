@@ -16,11 +16,16 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
+
 protected:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void BeginPlay() override;
 
 	void SpawnHost();
+
+
+public:
+	void Respawn(class AFPSCharacter* InPlayer);
 
 private:
 	void MoveToSpawnPoint(class AFPSCharacter* InPlayer);

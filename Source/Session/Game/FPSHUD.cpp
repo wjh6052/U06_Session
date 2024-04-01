@@ -54,6 +54,19 @@ void AFPSHUD::DrawHUD()
 	ACPlayerState* playerState = playerPawn->GetSelfPlayerState();
 	CheckNull(playerState);
 
+	FString str;
+	str = "Spawn Rotation : " + playerState->SpawnRotation.ToString();
+	DrawText(str, FLinearColor::Black, 50, 50);
+
+	str = "Pawn Rotation : " + playerPawn->GetActorRotation().ToString();
+	DrawText(str, FLinearColor::Black, 50, 50 + 15);
+
+	str = "Self Player State : " + (playerState ? playerState->GetName() : "Player State Is NULL!!");
+	DrawText(str, FLinearColor::Black, 50, 50 + 30);
+
+	str = "Pawn Location : " + playerPawn->GetActorLocation().ToString();
+	DrawText(str, FLinearColor::Black, 50, 50 + 45);
+
 
 	CheckNull(HUDWidget);
 	float health = playerState->Health;
@@ -63,4 +76,9 @@ void AFPSHUD::DrawHUD()
 	HUDWidget->SetHealthText(FString::FromInt((int32)health));
 	HUDWidget->SetScoreText(FString::FromInt((int32)score));
 	HUDWidget->SetDeathText(FString::FromInt((int32)death));
+
+	if (health <= 0)
+		HUDWidget->SetVisibleDeadImage(true);
+	else
+		HUDWidget->SetVisibleDeadImage(false);
 }
