@@ -23,4 +23,7 @@ private:
 	FTimerHandle GameStartHandle;
 
 	float StartTime = 1.0f;
+
+	uint32 PlayerMax = 2;
+	
 };

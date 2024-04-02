@@ -10,10 +10,11 @@ void ACLobbyGameMode::PostLogin(APlayerController* NewPlayer)
 	++NumberOfPlayers;
 
 	UE_LOG(LogTemp, Warning, L"Current Players : %d", NumberOfPlayers);
-	
-	if (NumberOfPlayers >= 3)
+
+
+	if (NumberOfPlayers >= PlayerMax)
 	{
-		UE_LOG(LogTemp, Warning, L"Reached 3 Players");
+		UE_LOG(LogTemp, Warning, L"Reached Max Players");
 
 
 		GetWorldTimerManager().SetTimer(GameStartHandle, this, &ACLobbyGameMode::StartGame, StartTime);
